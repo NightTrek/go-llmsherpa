@@ -5,173 +5,147 @@ import (
 	"strings"
 )
 
-// Block is the base interface for all block types
-type Block interface {
-	Tag() string
-	Level() int
-	PageIdx() int
-	BlockIdx() int
-	Top() float64
-	Left() float64
-	Bbox() []float64
-	Sentences() []string
-	Children() []Block
-	Parent() Block
-	BlockJSON() map[string]interface{}
-	AddChild(node Block)
+type BlockInterface interface {
+	AddChild(node BlockInterface)
 	ToHTML(includeChildren, recurse bool) string
 	ToText(includeChildren, recurse bool) string
-	ParentChain() []Block
+	ParentChain() []BlockInterface
 	ParentText() string
 	ToContextText(includeSectionInfo bool) string
-	IterChildren(node Block, level int, nodeVisitor func(Block))
-	Paragraphs() []Block
-	Chunks() []Block
-	Tables() []Block
-	Sections() []Block
+	IterChildren(node BlockInterface, level int, nodeVisitor func(BlockInterface))
+	Paragraphs() []BlockInterface
+	Chunks() []BlockInterface
+	Tables() []BlockInterface
+	Sections() []BlockInterface
 }
 
-// BaseBlock is the base struct for all block types
-type BaseBlock struct {
-	tag       string
-	level     int
-	pageIdx   int
-	blockIdx  int
-	top       float64
-	left      float64
-	bbox      []float64
-	sentences []string
-	children  []Block
-	parent    Block
-	blockJSON map[string]interface{}
+type Block struct {
+	Tag       string    `json:"tag"`
+	Level     int       `json:"level"`
+	PageIdx   int       `json:"page_idx"`
+	BlockIdx  int       `json:"block_idx"`
+	Top       float64   `json:"top"`
+	Left      float64   `json:"left"`
+	Bbox      []float64 `json:"bbox"`
+	Sentences []string  `json:"sentences"`
+	Children  []BlockInterface
+	Parent    BlockInterface
+	BlockJSON map[string]interface{}
 }
 
-// NewBaseBlock creates a new BaseBlock instance
-func NewBaseBlock(blockJSON map[string]interface{}) *BaseBlock {
-	tag, _ := blockJSON["tag"].(string)
-	level, _ := blockJSON["level"].(int)
-	pageIdx, _ := blockJSON["page_idx"].(int)
-	blockIdx, _ := blockJSON["block_idx"].(int)
-	top, _ := blockJSON["top"].(float64)
-	left, _ := blockJSON["left"].(float64)
-	bbox, _ := blockJSON["bbox"].([]float64)
-	sentences, _ := blockJSON["sentences"].([]string)
+func NewBlock(blockJSON map[string]interface{}) *Block {
+	block := &Block{
+		BlockJSON: blockJSON,
+	}
 
-	return &BaseBlock{
-		tag:       tag,
-		level:     level,
-		pageIdx:   pageIdx,
-		blockIdx:  blockIdx,
-		top:       top,
-		left:      left,
-		bbox:      bbox,
-		sentences: sentences,
-		children:  []Block{},
-		parent:    nil,
-		blockJSON: blockJSON,
+	if tag, ok := blockJSON["tag"].(string); ok {
+		block.Tag = tag
+	}
+	if level, ok := blockJSON["level"].(float64); ok {
+		block.Level = int(level)
+	} else {
+		block.Level = -1
+	}
+	if pageIdx, ok := blockJSON["page_idx"].(float64); ok {
+		block.PageIdx = int(pageIdx)
+	} else {
+		block.PageIdx = -1
+	}
+	if blockIdx, ok := blockJSON["block_idx"].(float64); ok {
+		block.BlockIdx = int(blockIdx)
+	} else {
+		block.BlockIdx = -1
+	}
+	if top, ok := blockJSON["top"].(float64); ok {
+		block.Top = top
+	} else {
+		block.Top = -1
+	}
+	if left, ok := blockJSON["left"].(float64); ok {
+		block.Left = left
+	} else {
+		block.Left = -1
+	}
+	if bbox, ok := blockJSON["bbox"].([]interface{}); ok {
+		for _, val := range bbox {
+			if f, ok := val.(float64); ok {
+				block.Bbox = append(block.Bbox, f)
+			}
+		}
+	}
+	if sentences, ok := blockJSON["sentences"].([]interface{}); ok {
+		for _, val := range sentences {
+			if s, ok := val.(string); ok {
+				block.Sentences = append(block.Sentences, s)
+			}
+		}
+	}
+
+	return block
+}
+
+func (b *Block) AddChild(node BlockInterface) {
+	b.Children = append(b.Children, node)
+	switch childNode := node.(type) {
+	case *Block:
+		childNode.Parent = b
+	case *Paragraph:
+		childNode.Parent = b
+	case *Section:
+		childNode.Parent = b
+	case *ListItem:
+		childNode.Parent = b
+	case *Table:
+		childNode.Parent = b
 	}
 }
 
-// Tag returns the tag of the block
-func (b *BaseBlock) Tag() string {
-	return b.tag
-}
-
-// Level returns the level of the block
-func (b *BaseBlock) Level() int {
-	return b.level
-}
-
-// PageIdx returns the page index of the block
-func (b *BaseBlock) PageIdx() int {
-	return b.pageIdx
-}
-
-// BlockIdx returns the block index of the block
-func (b *BaseBlock) BlockIdx() int {
-	return b.blockIdx
-}
-
-// Top returns the top position of the block
-func (b *BaseBlock) Top() float64 {
-	return b.top
-}
-
-// Left returns the left position of the block
-func (b *BaseBlock) Left() float64 {
-	return b.left
-}
-
-// Bbox returns the bounding box of the block
-func (b *BaseBlock) Bbox() []float64 {
-	return b.bbox
-}
-
-// Sentences returns the sentences of the block
-func (b *BaseBlock) Sentences() []string {
-	return b.sentences
-}
-
-// Children returns the immediate child blocks of the block
-func (b *BaseBlock) Children() []Block {
-	return b.children
-}
-
-// Parent returns the parent block of the block
-func (b *BaseBlock) Parent() Block {
-	return b.parent
-}
-
-// BlockJSON returns the JSON representation of the block
-func (b *BaseBlock) BlockJSON() map[string]interface{} {
-	return b.blockJSON
-}
-
-// AddChild adds a child block to the block and sets the parent of the child
-func (b *BaseBlock) AddChild(node Block) {
-	b.children = append(b.children, node)
-	node.(*BaseBlock).parent = b
-}
-
-// ToHTML converts the block to HTML (not implemented in the base struct)
-func (b *BaseBlock) ToHTML(includeChildren, recurse bool) string {
+func (b *Block) ToHTML(includeChildren, recurse bool) string {
+	// Implement the ToHTML method for the Block struct
 	return ""
 }
 
-// ToText converts the block to text (not implemented in the base struct)
-func (b *BaseBlock) ToText(includeChildren, recurse bool) string {
+func (b *Block) ToText(includeChildren, recurse bool) string {
+	// Implement the ToText method for the Block struct
 	return ""
 }
 
-// ParentChain returns the parent chain of the block
-func (b *BaseBlock) ParentChain() []Block {
-	var chain []Block
-	parent := b.Parent()
+func (b *Block) ParentChain() []BlockInterface {
+	var chain []BlockInterface
+	parent := b.Parent
 	for parent != nil {
-		chain = append(chain, parent)
-		parent = parent.Parent()
-	}
-	// Reverse the chain
-	for i, j := 0, len(chain)-1; i < j; i, j = i+1, j-1 {
-		chain[i], chain[j] = chain[j], chain[i]
+		chain = append([]BlockInterface{parent}, chain...)
+		switch parentBlock := parent.(type) {
+		case *Block:
+			parent = parentBlock.Parent
+		case *Paragraph:
+			parent = parentBlock.Parent
+		case *Section:
+			parent = parentBlock.Parent
+		case *ListItem:
+			parent = parentBlock.Parent
+		case *Table:
+			parent = parentBlock.Parent
+		default:
+			parent = nil
+		}
 	}
 	return chain
 }
 
-// ParentText returns the text of the parent chain of the block
-func (b *BaseBlock) ParentText() string {
+func (b *Block) ParentText() string {
 	parentChain := b.ParentChain()
 	var headerTexts, paraTexts []string
 	for _, p := range parentChain {
-		if p.Tag() == "header" {
+		if p.(*Block).Tag == "header" {
 			headerTexts = append(headerTexts, p.ToText(false, false))
-		} else if p.Tag() == "list_item" || p.Tag() == "para" {
+		} else if p.(*Block).Tag == "list_item" || p.(*Block).Tag == "para" {
 			paraTexts = append(paraTexts, p.ToText(false, false))
 		}
 	}
 	text := ""
 	if len(headerTexts) > 0 {
-		text += strings.Join(headerTexts, " > ")
+		text += " > " + strings.Join(headerTexts, " > ")
 	}
 	if len(paraTexts) > 0 {
 		text += "\n" + strings.Join(paraTexts, "\n")
@@ -179,13 +153,12 @@ func (b *BaseBlock) ParentText() string {
 	return text
 }
 
-// ToContextText returns the text of the block with section information
-func (b *BaseBlock) ToContextText(includeSectionInfo bool) string {
+func (b *Block) ToContextText(includeSectionInfo bool) string {
 	text := ""
 	if includeSectionInfo {
 		text += b.ParentText() + "\n"
 	}
-	if b.Tag() == "list_item" || b.Tag() == "para" || b.Tag() == "table" {
+	if b.Tag == "list_item" || b.Tag == "para" || b.Tag == "table" {
 		text += b.ToText(true, true)
 	} else {
 		text += b.ToText(false, false)
@@ -193,102 +166,93 @@ func (b *BaseBlock) ToContextText(includeSectionInfo bool) string {
 	return text
 }
 
-// IterChildren iterates over all the children of the block and calls the nodeVisitor function on each child
-func (b *BaseBlock) IterChildren(node Block, level int, nodeVisitor func(Block)) {
-	for _, child := range node.Children() {
+func (b *Block) IterChildren(node BlockInterface, level int, nodeVisitor func(BlockInterface)) {
+	for _, child := range node.(*Block).Children {
 		nodeVisitor(child)
-		if child.Tag() != "list_item" && child.Tag() != "para" && child.Tag() != "table" {
-			b.IterChildren(child, level+1, nodeVisitor)
+		switch childBlock := child.(type) {
+		case *Block:
+			if childBlock.Tag != "list_item" && childBlock.Tag != "para" && childBlock.Tag != "table" {
+				b.IterChildren(child, level+1, nodeVisitor)
+			}
 		}
 	}
 }
 
-// Paragraphs returns all the paragraphs in the block
-func (b *BaseBlock) Paragraphs() []Block {
-	var paragraphs []Block
-	paraCollector := func(node Block) {
-		if node.Tag() == "para" {
-			paragraphs = append(paragraphs, node)
+func (b *Block) Paragraphs() []BlockInterface {
+	var paragraphs []BlockInterface
+	paraCollector := func(node BlockInterface) {
+		switch nodeBlock := node.(type) {
+		case *Paragraph:
+			paragraphs = append(paragraphs, nodeBlock)
 		}
 	}
 	b.IterChildren(b, 0, paraCollector)
 	return paragraphs
 }
 
-// Chunks returns all the chunks in the block
-func (b *BaseBlock) Chunks() []Block {
-	var chunks []Block
-	chunkCollector := func(node Block) {
-		if node.Tag() == "para" || node.Tag() == "list_item" || node.Tag() == "table" {
-			chunks = append(chunks, node)
+func (b *Block) Chunks() []BlockInterface {
+	var chunks []BlockInterface
+	chunkCollector := func(node BlockInterface) {
+		switch nodeBlock := node.(type) {
+		case *Paragraph, *ListItem, *Table:
+			chunks = append(chunks, nodeBlock)
 		}
 	}
 	b.IterChildren(b, 0, chunkCollector)
 	return chunks
 }
 
-// Tables returns all the tables in the block
-func (b *BaseBlock) Tables() []Block {
-	var tables []Block
-	tableCollector := func(node Block) {
-		if node.Tag() == "table" {
-			tables = append(tables, node)
+func (b *Block) Tables() []BlockInterface {
+	var tables []BlockInterface
+	tableCollector := func(node BlockInterface) {
+		switch nodeBlock := node.(type) {
+		case *Table:
+			tables = append(tables, nodeBlock)
 		}
 	}
 	b.IterChildren(b, 0, tableCollector)
 	return tables
 }
 
-// Sections returns all the sections in the block
-func (b *BaseBlock) Sections() []Block {
-	var sections []Block
-	sectionCollector := func(node Block) {
-		if node.Tag() == "header" {
-			sections = append(sections, node)
+func (b *Block) Sections() []BlockInterface {
+	var sections []BlockInterface
+	sectionCollector := func(node BlockInterface) {
+		switch nodeBlock := node.(type) {
+		case *Section:
+			sections = append(sections, nodeBlock)
 		}
 	}
 	b.IterChildren(b, 0, sectionCollector)
 	return sections
 }
 
-// Paragraph represents a paragraph block
 type Paragraph struct {
-	*BaseBlock
+	*Block
 }
 
-// NewParagraph creates a new Paragraph instance
 func NewParagraph(paraJSON map[string]interface{}) *Paragraph {
 	return &Paragraph{
-		BaseBlock: NewBaseBlock(paraJSON),
+		Block: NewBlock(paraJSON),
 	}
 }
 
-// ToText converts the paragraph to text
 func (p *Paragraph) ToText(includeChildren, recurse bool) string {
-	paraText := strings.Join(p.Sentences(), "\n")
+	paraText := strings.Join(p.Sentences, "\n")
 	if includeChildren {
-		for _, child := range p.Children() {
-			if recurse {
-				paraText += "\n" + child.ToText(true, true)
-			} else {
-				paraText += "\n" + child.ToText(false, false)
-			}
+		for _, child := range p.Children {
+			paraText += "\n" + child.ToText(recurse, recurse)
 		}
 	}
 	return paraText
 }
 
-// ToHTML converts the paragraph to HTML
 func (p *Paragraph) ToHTML(includeChildren, recurse bool) string {
-	htmlStr := "<p>" + strings.Join(p.Sentences(), "\n")
-	if includeChildren && len(p.Children()) > 0 {
+	htmlStr := "<p>"
+	htmlStr += strings.Join(p.Sentences, "<br>")
+	if includeChildren && len(p.Children) > 0 {
 		htmlStr += "<ul>"
-		for _, child := range p.Children() {
-			if recurse {
-				htmlStr += child.ToHTML(true, true)
-			} else {
-				htmlStr += child.ToHTML(false, false)
-			}
+		for _, child := range p.Children {
+			htmlStr += child.ToHTML(recurse, recurse)
 		}
 		htmlStr += "</ul>"
 	}
@@ -296,89 +260,68 @@ func (p *Paragraph) ToHTML(includeChildren, recurse bool) string {
 	return htmlStr
 }
 
-// Section represents a section block
 type Section struct {
-	*BaseBlock
-	Title string
+	*Block
+	Title string `json:"title"`
 }
 
-// NewSection creates a new Section instance
 func NewSection(sectionJSON map[string]interface{}) *Section {
-	baseBlock := NewBaseBlock(sectionJSON)
-	return &Section{
-		BaseBlock: baseBlock,
-		Title:     strings.Join(baseBlock.Sentences(), "\n"),
+	section := &Section{
+		Block: NewBlock(sectionJSON),
 	}
+	section.Title = strings.Join(section.Sentences, "\n")
+	return section
 }
 
-// ToText converts the section to text
 func (s *Section) ToText(includeChildren, recurse bool) string {
 	text := s.Title
 	if includeChildren {
-		for _, child := range s.Children() {
-			if recurse {
-				text += "\n" + child.ToText(true, true)
-			} else {
-				text += "\n" + child.ToText(false, false)
-			}
+		for _, child := range s.Children {
+			text += "\n" + child.ToText(recurse, recurse)
 		}
 	}
 	return text
 }
 
-// ToHTML converts the section to HTML
 func (s *Section) ToHTML(includeChildren, recurse bool) string {
-	htmlStr := fmt.Sprintf("<h%d>%s</h%d>", s.Level()+1, s.Title, s.Level()+1)
+	htmlStr := fmt.Sprintf("<h%d>", s.Level+1)
+	htmlStr += s.Title
+	htmlStr += fmt.Sprintf("</h%d>", s.Level+1)
 	if includeChildren {
-		for _, child := range s.Children() {
-			if recurse {
-				htmlStr += child.ToHTML(true, true)
-			} else {
-				htmlStr += child.ToHTML(false, false)
-			}
+		for _, child := range s.Children {
+			htmlStr += child.ToHTML(recurse, recurse)
 		}
 	}
 	return htmlStr
 }
 
-// ListItem represents a list item block
 type ListItem struct {
-	*BaseBlock
+	*Block
 }
 
-// NewListItem creates a new ListItem instance
 func NewListItem(listJSON map[string]interface{}) *ListItem {
 	return &ListItem{
-		BaseBlock: NewBaseBlock(listJSON),
+		Block: NewBlock(listJSON),
 	}
 }
 
-// ToText converts the list item to text
 func (li *ListItem) ToText(includeChildren, recurse bool) string {
-	text := strings.Join(li.Sentences(), "\n")
+	text := strings.Join(li.Sentences, "\n")
 	if includeChildren {
-		for _, child := range li.Children() {
-			if recurse {
-				text += "\n" + child.ToText(true, true)
-			} else {
-				text += "\n" + child.ToText(false, false)
-			}
+		for _, child := range li.Children {
+			text += "\n" + child.ToText(recurse, recurse)
 		}
 	}
 	return text
 }
 
-// ToHTML converts the list item to HTML
 func (li *ListItem) ToHTML(includeChildren, recurse bool) string {
-	htmlStr := "<li>" + strings.Join(li.Sentences(), "\n")
-	if includeChildren && len(li.Children()) > 0 {
+	htmlStr := "<li>"
+	htmlStr += strings.Join(li.Sentences, "<br>")
+	if includeChildren && len(li.Children) > 0 {
 		htmlStr += "<ul>"
-		for _, child := range li.Children() {
-			if recurse {
-				htmlStr += child.ToHTML(true, true)
-			} else {
-				htmlStr += child.ToHTML(false, false)
-			}
+		for _, child := range li.Children {
+			htmlStr += child.ToHTML(recurse, recurse)
 		}
 		htmlStr += "</ul>"
 	}
@@ -386,85 +329,100 @@ func (li *ListItem) ToHTML(includeChildren, recurse bool) string {
 	return htmlStr
 }
 
-// TableCell represents a table cell block
 type TableCell struct {
-	*BaseBlock
-	ColSpan   int
-	CellValue interface{}
-	CellNode  Block
+	*Block
+	ColSpan   int         `json:"col_span"`
+	CellValue interface{} `json:"cell_value"`
+	CellNode  *Paragraph
 }
 
-// NewTableCell creates a new TableCell instance
 func NewTableCell(cellJSON map[string]interface{}) *TableCell {
-	baseBlock := NewBaseBlock(cellJSON)
-	colSpan, _ := cellJSON["col_span"].(int)
-	cellValue := cellJSON["cell_value"]
-	var cellNode Block
-	if _, ok := cellValue.(string); !ok {
-		cellNode = NewParagraph(cellValue.(map[string]interface{}))
+	cell := &TableCell{
+		Block: NewBlock(cellJSON),
 	}
-	return &TableCell{
-		BaseBlock: baseBlock,
-		ColSpan:   colSpan,
-		CellValue: cellValue,
-		CellNode:  cellNode,
+
+	if colSpan, ok := cellJSON["col_span"].(float64); ok {
+		cell.ColSpan = int(colSpan)
+	} else {
+		cell.ColSpan = 1
 	}
+
+	cell.CellValue = cellJSON["cell_value"]
+
+	if _, ok := cell.CellValue.(string); !ok {
+		cell.CellNode = NewParagraph(cell.CellValue.(map[string]interface{}))
+	}
+
+	return cell
 }
 
-// ToText returns the cell value as text
 func (tc *TableCell) ToText() string {
-	cellText := tc.CellValue.(string)
-	if tc.CellNode != nil {
-		cellText = tc.CellNode.ToText(false, false)
+	cellText := ""
+	switch value := tc.CellValue.(type) {
+	case string:
+		cellText = value
+	default:
+		if tc.CellNode != nil {
+			cellText = tc.CellNode.ToText(false, false)
+		}
 	}
 	return cellText
 }
 
-// ToHTML returns the cell value as HTML
 func (tc *TableCell) ToHTML() string {
-	cellHTML := tc.CellValue.(string)
-	if tc.CellNode != nil {
-		cellHTML = tc.CellNode.ToHTML(false, false)
+	cellHTML := ""
+	switch value := tc.CellValue.(type) {
+	case string:
+		cellHTML = value
+	default:
+		if tc.CellNode != nil {
+			cellHTML = tc.CellNode.ToHTML(false, false)
+		}
 	}
-	htmlStr := fmt.Sprintf("<td>%s</td>", cellHTML)
+
+	htmlStr := "<td"
 	if tc.ColSpan > 1 {
-		htmlStr = fmt.Sprintf("<td colSpan=%d>%s</td>", tc.ColSpan, cellHTML)
+		htmlStr += fmt.Sprintf(" colspan=\"%d\"", tc.ColSpan)
 	}
+	htmlStr += ">" + cellHTML + "</td>"
+
 	return htmlStr
 }
 
-// TableRow represents a table row block
 type TableRow struct {
+	*Block
 	Cells []*TableCell
 }
 
-// NewTableRow creates a new TableRow instance
 func NewTableRow(rowJSON map[string]interface{}) *TableRow {
 	row := &TableRow{
-		Cells: []*TableCell{},
+		Block: NewBlock(rowJSON),
+		Cells: make([]*TableCell, 0),
 	}
-	if rowJSON["type"] == "full_row" {
+
+	if rowType, ok := rowJSON["type"].(string); ok && rowType == "full_row" {
 		cell := NewTableCell(rowJSON)
 		row.Cells = append(row.Cells, cell)
 	} else {
-		for _, cellJSON := range rowJSON["cells"].([]interface{}) {
-			cell := NewTableCell(cellJSON.(map[string]interface{}))
-			row.Cells = append(row.Cells, cell)
+		if cells, ok := rowJSON["cells"].([]interface{}); ok {
+			for _, cellJSON := range cells {
+				cell := NewTableCell(cellJSON.(map[string]interface{}))
+				row.Cells = append(row.Cells, cell)
+			}
 		}
 	}
+
 	return row
 }
 
-// ToText returns the text of the row with text from all the cells in the row delimited by '|'
 func (tr *TableRow) ToText(includeChildren, recurse bool) string {
-	var cellTexts []string
+	cellText := ""
 	for _, cell := range tr.Cells {
-		cellTexts = append(cellTexts, cell.ToText())
+		cellText += " | " + cell.ToText()
 	}
-	return " | " + strings.Join(cellTexts, " | ")
+	return cellText
 }
 
-// ToHTML returns the HTML for a <tr> with HTML from all the cells in the row as <td>
 func (tr *TableRow) ToHTML(includeChildren, recurse bool) string {
 	htmlStr := "<tr>"
 	for _, cell := range tr.Cells {
@@ -475,22 +433,33 @@ func (tr *TableRow) ToHTML(includeChildren, recurse bool) string {
 }
 
 type TableHeader struct {
-	*BaseBlock
+	*Block
+	Cells []*TableCell
 }
 
-func NewTableHeader(headerJSON map[string]interface{}) *TableHeader {
-	return &TableHeader{
-		BaseBlock: NewBaseBlock(headerJSON),
+func NewTableHeader(rowJSON map[string]interface{}) *TableHeader {
+	header := &TableHeader{
+		Block: NewBlock(rowJSON),
+		Cells: make([]*TableCell, 0),
 	}
+
+	if cells, ok := rowJSON["cells"].([]interface{}); ok {
+		for _, cellJSON := range cells {
+			cell := NewTableCell(cellJSON.(map[string]interface{}))
+			header.Cells = append(header.Cells, cell)
+		}
+	}
+
+	return header
 }
 
 func (th *TableHeader) ToText(includeChildren, recurse bool) string {
 	cellText := ""
-	for _, cell := range th.Cells() {
+	for _, cell := range th.Cells {
 		cellText += " | " + cell.ToText()
 	}
 	cellText += "\n"
-	for range th.Cells() {
+	for range th.Cells {
 		cellText += " | ---"
 	}
 	return cellText
@@ -498,49 +467,41 @@ func (th *TableHeader) ToText(includeChildren, recurse bool) string {
 
 func (th *TableHeader) ToHTML(includeChildren, recurse bool) string {
 	htmlStr := "<th>"
-	for _, cell := range th.Cells() {
+	for _, cell := range th.Cells {
 		htmlStr += cell.ToHTML()
 	}
 	htmlStr += "</th>"
 	return htmlStr
 }
 
-func (th *TableHeader) Cells() []*TableCell {
-	var cells []*TableCell
-	for _, cellJSON := range th.BlockJSON()["cells"].([]interface{}) {
-		cell := NewTableCell(cellJSON.(map[string]interface{}))
-		cells = append(cells, cell)
-	}
-	return cells
-}
-
 type Table struct {
-	*BaseBlock
+	*Block
 	Rows    []*TableRow
 	Headers []*TableHeader
-	Name    string
+	Name    string `json:"name"`
 }
 
-func NewTable(tableJSON map[string]interface{}, parent Block) *Table {
-	baseBlock := NewBaseBlock(tableJSON)
+func NewTable(tableJSON map[string]interface{}, parent BlockInterface) *Table {
 	table := &Table{
-		BaseBlock: baseBlock,
-		Rows:      []*TableRow{},
-		Headers:   []*TableHeader{},
-		Name:      tableJSON["name"].(string),
+		Block:   NewBlock(tableJSON),
+		Rows:    make([]*TableRow, 0),
+		Headers: make([]*TableHeader, 0),
+		Name:    tableJSON["name"].(string),
 	}
-	if rowsData, ok := tableJSON["table_rows"].([]interface{}); ok {
-		for _, rowData := range rowsData {
-			rowJSON := rowData.(map[string]interface{})
-			if rowJSON["type"] == "table_header" {
-				row := NewTableHeader(rowJSON)
-				table.Headers = append(table.Headers, row)
+
+	if tableRows, ok := tableJSON["table_rows"].([]interface{}); ok {
+		for _, rowJSON := range tableRows {
+			rowData := rowJSON.(map[string]interface{})
+			if rowType, ok := rowData["type"].(string); ok && rowType == "table_header" {
+				header := NewTableHeader(rowData)
+				table.Headers = append(table.Headers, header)
 			} else {
-				row := NewTableRow(rowJSON)
+				row := NewTableRow(rowData)
 				table.Rows = append(table.Rows, row)
 			}
 		}
 	}
+
 	return table
 }
 
@@ -552,7 +513,7 @@ func (t *Table) ToText(includeChildren, recurse bool) string {
 	for _, row := range t.Rows {
 		text += row.ToText(false, false) + "\n"
 	}
-	return text
+	return strings.TrimSpace(text)
 }
 
 func (t *Table) ToHTML(includeChildren, recurse bool) string {
@@ -569,51 +530,58 @@ func (t *Table) ToHTML(includeChildren, recurse bool) string {
 
 type LayoutReader struct{}
 
-func (lr *LayoutReader) Debug(pdfRoot Block) {
-	var iterChildren func(node Block, level int)
-	iterChildren = func(node Block, level int) {
-		indent := strings.Repeat("-", level)
-		fmt.Printf("%s %s (%d) %s\n", indent, node.Tag(), len(node.Children()), node.ToText(false, false))
-		for _, child := range node.Children() {
+func (lr *LayoutReader) Debug(pdfRoot BlockInterface) {
+	var iterChildren func(node BlockInterface, level int)
+	iterChildren = func(node BlockInterface, level int) {
+		for _, child := range node.(*Block).Children {
+			fmt.Printf("%s%s (%d) %s\n", strings.Repeat("-", level), child.(*Block).Tag, len(child.(*Block).Children), child.ToText(false, false))
 			iterChildren(child, level+1)
 		}
 	}
 	iterChildren(pdfRoot, 0)
 }
 
-func (lr *LayoutReader) Read(blocksJSON []interface{}) Block {
-	root := &BaseBlock{}
-	parent := Block(root)
-	parentStack := []Block{root}
-	var prevNode Block = root
-	listStack := []Block{}
+func (lr *LayoutReader) Read(blocksJSON []interface{}) BlockInterface {
+	rootNode := &Block{}
+	var parent BlockInterface = rootNode
+	parentStack := []BlockInterface{rootNode}
+	var prevNode BlockInterface = rootNode
+	var listStack []BlockInterface
 
 	for _, blockData := range blocksJSON {
-		blockJSON := blockData.(map[string]interface{})
-		tag := blockJSON["tag"].(string)
-
-		if tag != "list_item" && len(listStack) > 0 {
-			listStack = []Block{}
+		blockMap := blockData.(map[string]interface{})
+		if blockMap["tag"] != "list_item" && len(listStack) > 0 {
+			listStack = []BlockInterface{}
 		}
 
-		var node Block
-		switch tag {
+		var node BlockInterface
+		switch blockMap["tag"] {
 		case "para":
-			node = NewParagraph(blockJSON)
-			parent.AddChild(node)
+			node = NewParagraph(blockMap)
 		case "table":
-			node = NewTable(blockJSON, prevNode)
-			parent.AddChild(node)
+			node = NewTable(blockMap, prevNode)
 		case "list_item":
-			node = NewListItem(blockJSON)
-			if prevNode.Tag() == "para" && prevNode.Level() == node.Level() {
-				listStack = append(listStack, prevNode)
-			} else if prevNode.Tag() == "list_item" {
-				if node.Level() > prevNode.Level() {
+			node = NewListItem(blockMap)
+		case "header":
+			node = NewSection(blockMap)
+		default:
+			node = NewBlock(blockMap)
+		}
+
+		switch nodeBlock := node.(type) {
+		case *ListItem:
+			if len(listStack) > 0 {
+				lastListItem := listStack[len(listStack)-1].(*ListItem)
+				if nodeBlock.Level > lastListItem.Level {
 					listStack = append(listStack, prevNode)
-				} else if node.Level() < prevNode.Level() {
-					for len(listStack) > 0 && listStack[len(listStack)-1].Level() > node.Level() {
-						listStack = listStack[:len(listStack)-1]
+				} else if nodeBlock.Level < lastListItem.Level {
+					for len(listStack) > 0 {
+						lastListItem = listStack[len(listStack)-1].(*ListItem)
+						if lastListItem.Level >= nodeBlock.Level {
+							listStack = listStack[:len(listStack)-1]
+						} else {
+							break
+						}
 					}
 				}
 			}
@@ -622,42 +590,61 @@ func (lr *LayoutReader) Read(blocksJSON []interface{}) Block {
 			} else {
 				parent.AddChild(node)
 			}
-		case "header":
-			node = NewSection(blockJSON)
-			if node.Level() > parent.Level() {
-				parentStack = append(parentStack, node)
-				parent.AddChild(node)
-			} else {
-				for len(parentStack) > 1 && parentStack[len(parentStack)-1].Level() > node.Level() {
-					parentStack = parentStack[:len(parentStack)-1]
+		case *Section:
+			switch parentBlock := parent.(type) {
+			case *Block:
+				if nodeBlock.Level > parentBlock.Level {
+					parentStack = append(parentStack, node)
+					parent.AddChild(node)
+				} else {
+					for len(parentStack) > 1 {
+						switch parentStackBlock := parentStack[len(parentStack)-1].(type) {
+						case *Block:
+							if parentStackBlock.Level > nodeBlock.Level {
+								parentStack = parentStack[:len(parentStack)-1]
+							}
+						}
+					}
+					parentStack[len(parentStack)-1].AddChild(node)
+					parentStack = append(parentStack, node)
 				}
-				parentStack[len(parentStack)-1].AddChild(node)
-				parentStack = append(parentStack, node)
+				parent = node
 			}
-			parent = node
+		default:
+			parent.AddChild(node)
 		}
 		prevNode = node
 	}
 
-	return root
+	return rootNode
 }
 
 type Document struct {
-	Reader   *LayoutReader
-	RootNode Block
-	JSON     []interface{}
+	reader   *LayoutReader
+	rootNode BlockInterface
+	json     []interface{}
 }
 
-func (d *Document) Chunks() []Block {
-	return d.RootNode.Chunks()
+func NewDocument(blocksJSON []interface{}) *Document {
+	reader := &LayoutReader{}
+	rootNode := reader.Read(blocksJSON)
+	return &Document{
+		reader:   reader,
+		rootNode: rootNode,
+		json:     blocksJSON,
+	}
 }
 
-func (d *Document) Tables() []Block {
-	return d.RootNode.Tables()
+func (d *Document) Chunks() []BlockInterface {
+	return d.rootNode.Chunks()
 }
 
-func (d *Document) Sections() []Block {
-	return d.RootNode.Sections()
+func (d *Document) Tables() []BlockInterface {
+	return d.rootNode.Tables()
+}
+
+func (d *Document) Sections() []BlockInterface {
+	return d.rootNode.Sections()
 }
 
 func (d *Document) ToText() string {
@@ -665,7 +652,7 @@ func (d *Document) ToText() string {
 	for _, section := range d.Sections() {
 		text += section.ToText(true, true) + "\n"
 	}
-	return text
+	return strings.TrimSpace(text)
 }
 
 func (d *Document) ToHTML() string {
@@ -675,14 +662,4 @@ func (d *Document) ToHTML() string {
 	}
 	htmlStr += "</html>"
 	return htmlStr
-}
-
-func NewDocument(blocksJSON []interface{}) *Document {
-	reader := &LayoutReader{}
-	rootNode := reader.Read(blocksJSON)
-	return &Document{
-		Reader:   reader,
-		RootNode: rootNode,
-		JSON:     blocksJSON,
-	}
 }
