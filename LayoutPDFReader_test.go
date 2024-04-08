@@ -3,6 +3,7 @@ package chipper
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -46,6 +47,8 @@ func TestChipper(t *testing.T) {
 			t.Fatal("ReadPDF returned an invalid or empty document.")
 		}
 
+		sections := make([]string, 0)
+
 		// iterate through doc.Sections()
 		for _, section := range doc.Sections() {
 			// t.Logf("Section tag: %s", section.Tag())
@@ -53,32 +56,98 @@ func TestChipper(t *testing.T) {
 			t.Logf("Section: %s", sectionText)
 			// sectionHTML := section.ToHTML(false, true)
 			// t.Logf("Section HTML: %s", sectionHTML)
+
+			var iterChildren func(node BlockInterface, level int)
+			iterChildren = func(node BlockInterface, level int) {
+				switch nodeBlock := node.(type) {
+				case *Paragraph:
+					t.Logf("%s-Paragraph", strings.Repeat("  ", level))
+					t.Logf("# Sentences: %d", len(nodeBlock.Sentences))
+					t.Logf("PARAGRAPH SPOTTED: %s", strings.Join(nodeBlock.Sentences, "\n\n SENTENCE \n\n"))
+				case *Block:
+					for _, child := range nodeBlock.Children {
+						switch childBlock := child.(type) {
+						case *Section:
+							t.Logf("%s-Section", strings.Repeat("  ", level))
+							t.Logf("# Sentences: %d", len(childBlock.Sentences))
+						}
+						iterChildren(child, level+1)
+					}
+				case *Section:
+					for _, child := range nodeBlock.Children {
+						switch childBlock := child.(type) {
+						case *Section:
+							t.Logf("%s-Section", strings.Repeat("  ", level))
+							t.Logf("# Sentences: %d", len(childBlock.Sentences))
+						}
+						iterChildren(child, level+1)
+					}
+					sections = append(sections, nodeBlock.ToContextText(true))
+				case *ListItem:
+					t.Logf("%s-Paragraph", strings.Repeat("  ", level))
+					t.Logf("# Sentences: %d", len(nodeBlock.Sentences))
+					t.Logf("LIST ITEM SPOTTED: %s", strings.Join(nodeBlock.Sentences, "\n\n LIST SENTENCE \n\n"))
+					for _, child := range nodeBlock.Children {
+						switch childBlock := child.(type) {
+						case *Section:
+							t.Logf("%s-Section", strings.Repeat("  ", level))
+							t.Logf("# Sentences: %d", len(childBlock.Sentences))
+						}
+						iterChildren(child, level+1)
+					}
+				// Handle other block types as needed
+				default:
+					t.Logf("Unsupported block type: %T", node)
+				}
+			}
+
+			iterChildren(section, 1)
+
 		}
 
+		sentences := make([]string, 0)
 		// iterate through doc.Chunks()
 		for _, chunk := range doc.Chunks() {
 			// t.Logf("Chunk tag: %s", chunk.Tag())
-			chunkText := chunk.ToText(false, false)
-			t.Logf("Chunk: %s", chunkText)
-			// chunkHTML := chunk.ToHTML(false, false)
-			// t.Logf("Chunk HTML: %s", chunkHTML)
-			paragraphs := chunk.Paragraphs()
-			t.Logf("Number of paragraphs in chunk: %d", len(paragraphs))
-			for _, paragraph := range paragraphs {
-				t.Logf("Paragraph: %s", paragraph.ToText(false, false))
+			// chunkText := chunk.ToText(false, false)
+			// t.Logf("Chunk: %s", chunkText)
+			switch nodeBlock := chunk.(type) {
+			case *Block:
+				t.Logf("Number of sentences in block: %d", len(nodeBlock.Sentences))
+				sentences = append(sentences, nodeBlock.Sentences...)
+			case *Section:
+				t.Logf("Number of sentences in section: %d", len(nodeBlock.Sentences))
+				sentences = append(sentences, nodeBlock.Sentences...)
+			case *ListItem:
+				t.Logf("Number of sentences in listItem: %d", len(nodeBlock.Sentences))
+				sentences = append(sentences, nodeBlock.Sentences...)
+			case *Paragraph:
+				t.Logf("Number of sentences in paragraph: %d", len(nodeBlock.Sentences))
+				sentences = append(sentences, nodeBlock.Sentences...)
 			}
+			// // chunkHTML := chunk.ToHTML(false, false)
+			// // t.Logf("Chunk HTML: %s", chunkHTML)
+			// paragraphs := chunk.Paragraphs()
+			// t.Logf("Number of paragraphs in chunk: %d", len(paragraphs))
+			// for _, paragraph := range paragraphs {
+			// 	t.Logf("Paragraph: %s", paragraph.ToText(false, false))
+			// 	sentences := paragraph.(*Paragraph).Sentences
+			// 	t.Logf("Number of sentences in paragraph: %d", len(sentences))
 
-			// sentences := chunk.Sentences()
-			// t.Logf("Number of sentences in chunk: %d", len(sentences))
-			// for _, sentence := range sentences {
-			// 	t.Logf("Sentence: %s", sentence)
 			// }
 
+			//iterate through all the chunk children recursively and print out the lengths of the sentence array for every paragraph
 		}
 
 		t.Logf("number of sections: %d", len(doc.Sections()))
 		t.Logf("number of chunks: %d", len(doc.Chunks()))
 		t.Logf("number of tables: %d", len(doc.Tables()))
+		t.Logf("number of sentences: %d", len(sentences))
+
+		// iterate and print each sentence with \n between
+		for _, sentence := range sentences {
+			t.Logf("\n\n%s\n\n", sentence)
+		}
 
 		// Further checks can be added here based on the specifics of your implementation and what constitutes a successful read operation.
 		// Examples might include checking specific text blocks or document properties to ensure the parsing was successful.
