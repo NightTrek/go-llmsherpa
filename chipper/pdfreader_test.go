@@ -11,7 +11,7 @@ import (
 
 // const testPDFURL = "https://raw.githubusercontent.com/run-llama/llama_index/main/docs/docs/examples/data/10q/uber_10q_march_2022.pdf"
 
-func (r *LayoutPDFReader) ReadPDFTest() (*Document, error) {
+func ReadPDFTest() (*Document, error) {
 	var err error
 
 	var response map[string]interface{}
@@ -34,10 +34,10 @@ func (r *LayoutPDFReader) ReadPDFTest() (*Document, error) {
 func TestChipper(t *testing.T) {
 	t.Run("TestReadPDFFromURL", func(t *testing.T) {
 		// Initialize the LayoutPDFReader with a dummy parser API URL.
-		reader := NewLayoutPDFReader("testlink")
+		// reader := NewLayoutPDFReader("testlink")
 
 		// Call the ReadPDF method with the test PDF URL. Pass nil for the contents to indicate URL download.
-		doc, err := reader.ReadPDFTest()
+		doc, err := ReadPDFTest()
 		if err != nil {
 			t.Fatalf("ReadPDF failed: %v", err)
 		}
