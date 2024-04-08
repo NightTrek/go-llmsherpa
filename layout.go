@@ -1,4 +1,4 @@
-package main
+package chipper
 
 import (
 	"bytes"
@@ -9,8 +9,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-
-	reader "./reader"
 )
 
 type LayoutPDFReader struct {
@@ -92,7 +90,7 @@ func (r *LayoutPDFReader) parsePDF(pdfFile string, pdfData []byte) ([]byte, erro
 	return io.ReadAll(resp.Body)
 }
 
-func (r *LayoutPDFReader) ReadPDF(pathOrURL string, contents []byte) (*reader.Document, error) {
+func (r *LayoutPDFReader) ReadPDF(pathOrURL string, contents []byte) (*Document, error) {
 	var pdfFile string
 	var pdfData []byte
 	var err error
@@ -128,5 +126,5 @@ func (r *LayoutPDFReader) ReadPDF(pathOrURL string, contents []byte) (*reader.Do
 	}
 
 	blocks := response["return_dict"].(map[string]interface{})["result"].(map[string]interface{})["blocks"].([]interface{})
-	return reader.NewDocument(blocks), nil
+	return NewDocument(blocks), nil
 }
