@@ -139,15 +139,17 @@ func TestChipper(t *testing.T) {
 			//iterate through all the chunk children recursively and print out the lengths of the sentence array for every paragraph
 		}
 
+		// iterate and print each sentence with \n between
+		for _, sentence := range sentences {
+			t.Logf("\n\n%s\n\n", sentence)
+		}
+
 		t.Logf("number of sections: %d", len(doc.Sections()))
 		t.Logf("number of chunks: %d", len(doc.Chunks()))
 		t.Logf("number of tables: %d", len(doc.Tables()))
 		t.Logf("number of sentences: %d", len(sentences))
 
-		// iterate and print each sentence with \n between
-		for _, sentence := range sentences {
-			t.Logf("\n\n%s\n\n", sentence)
-		}
+		t.Logf("table example:\n\n%s\n", doc.Tables()[4].ToHTML(true, true))
 
 		// Further checks can be added here based on the specifics of your implementation and what constitutes a successful read operation.
 		// Examples might include checking specific text blocks or document properties to ensure the parsing was successful.
