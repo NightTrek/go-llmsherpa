@@ -10,9 +10,17 @@ type LayoutReader struct{}
 func (lr *LayoutReader) Debug(pdfRoot BlockInterface) {
 	var iterChildren func(node BlockInterface, level int)
 	iterChildren = func(node BlockInterface, level int) {
-		for _, child := range node.(*Block).Children {
-			fmt.Printf("%s%s (%d) %s\n", strings.Repeat("-", level), child.(*Block).Tag, len(child.(*Block).Children), child.ToText(false, false))
-			iterChildren(child, level+1)
+		switch nodeBlock := node.(type) {
+		case *Block:
+			for _, child := range nodeBlock.Children {
+				fmt.Printf("%s%s (%d) %s\n", strings.Repeat("-", level), child.(*Block).Tag, len(child.(*Block).Children), child.ToText(false, false))
+				iterChildren(child, level+1)
+			}
+		case *Paragraph, *Section, *ListItem, *Table:
+			for _, child := range nodeBlock.(*Block).Children {
+				fmt.Printf("%s%s (%d) %s\n", strings.Repeat("-", level), child.(*Block).Tag, len(child.(*Block).Children), child.ToText(false, false))
+				iterChildren(child, level+1)
+			}
 		}
 	}
 	iterChildren(pdfRoot, 0)
