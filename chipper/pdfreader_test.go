@@ -1,8 +1,11 @@
 package chipper
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -17,7 +20,7 @@ func ReadPDFTest() (*Document, error) {
 	var response map[string]interface{}
 
 	// pull response json from response.json file
-	parserResponse, err := os.ReadFile("response.json")
+	parserResponse, err := os.ReadFile("../response.json")
 	if err != nil {
 		return nil, err
 	}
@@ -33,6 +36,18 @@ func ReadPDFTest() (*Document, error) {
 
 func TestChipper(t *testing.T) {
 	t.Run("TestReadPDFFromURL", func(t *testing.T) {
+
+		// Run the Python test and capture its output
+		cmd := exec.Command("python3.10", "../python_test/pdfreader_test.py")
+		var outBuf, errBuf bytes.Buffer
+		cmd.Stdout = &outBuf
+		cmd.Stderr = &errBuf
+		err := cmd.Run()
+		if err != nil {
+			t.Fatalf("Failed to run Python test: %v\nError: %s", err, errBuf.String())
+		}
+		pythonOutput := outBuf.String()
+
 		// Initialize the LayoutPDFReader with a dummy parser API URL.
 		// reader := NewLayoutPDFReader("testlink")
 
@@ -151,6 +166,13 @@ func TestChipper(t *testing.T) {
 
 		t.Logf("table example:\n\n%s\n", doc.Tables()[4].ToHTML(true, true))
 
+		// Compare the results with the Python output
+		goOutput := fmt.Sprintf("Number of sections: %d\nNumber of chunks: %d\nNumber of tables: %d\nNumber of sentences: %d",
+			len(doc.Sections()), len(doc.Chunks()), len(doc.Tables()), len(sentences))
+
+		if goOutput != pythonOutput {
+			t.Errorf("Output mismatch:\nPython:\n%s\nGo:\n%s", pythonOutput, goOutput)
+		}
 		// Further checks can be added here based on the specifics of your implementation and what constitutes a successful read operation.
 		// Examples might include checking specific text blocks or document properties to ensure the parsing was successful.
 	})
