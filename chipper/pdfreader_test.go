@@ -38,7 +38,7 @@ func TestChipper(t *testing.T) {
 	t.Run("TestReadPDFFromURL", func(t *testing.T) {
 
 		// Run the Python test and capture its output
-		cmd := exec.Command("python3.10", "../python_test/pdfreader_test.py")
+		cmd := exec.Command("python", "../python_test/pdfreader_test.py")
 		var outBuf, errBuf bytes.Buffer
 		cmd.Stdout = &outBuf
 		cmd.Stderr = &errBuf
