@@ -211,9 +211,9 @@ func (b *Block) Paragraphs() []BlockInterface {
 func (b *Block) Chunks() []BlockInterface {
 	var chunks []BlockInterface
 	chunkCollector := func(node BlockInterface) {
-		switch node.(type) {
+		switch nodeBlock := node.(type) {
 		case *Paragraph, *ListItem, *Table:
-			chunks = append(chunks, node)
+			chunks = append(chunks, nodeBlock)
 		}
 	}
 	b.IterChildren(b, 0, chunkCollector)
@@ -375,10 +375,16 @@ func NewTableCell(cellJSON map[string]interface{}) *TableCell {
 }
 
 func (tc *TableCell) ToText() string {
-	if tc.CellNode != nil {
-		return tc.CellNode.ToText(false, false)
+	cellText := ""
+	switch value := tc.CellValue.(type) {
+	case string:
+		cellText = value
+	default:
+		if tc.CellNode != nil {
+			cellText = tc.CellNode.ToText(false, false)
+		}
 	}
-	return fmt.Sprint(tc.CellValue)
+	return cellText
 }
 
 func (tc *TableCell) ToHTML() string {
