@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 	"testing"
 )
 
@@ -38,7 +37,7 @@ func TestChipper(t *testing.T) {
 	t.Run("TestReadPDFFromURL", func(t *testing.T) {
 
 		// Run the Python test and capture its output
-		cmd := exec.Command("python", "../python_test/pdfreader_test.py")
+		cmd := exec.Command("python3", "../python_test/pdfreader_test.py")
 		var outBuf, errBuf bytes.Buffer
 		cmd.Stdout = &outBuf
 		cmd.Stderr = &errBuf
@@ -62,63 +61,63 @@ func TestChipper(t *testing.T) {
 			t.Fatal("ReadPDF returned an invalid or empty document.")
 		}
 
-		sections := make([]string, 0)
+		// sections := make([]string, 0)
 
-		// iterate through doc.Sections()
-		for _, section := range doc.Sections() {
-			// t.Logf("Section tag: %s", section.Tag())
-			sectionText := section.ToText(true, false)
-			t.Logf("Section: %s", sectionText)
-			// sectionHTML := section.ToHTML(false, true)
-			// t.Logf("Section HTML: %s", sectionHTML)
+		// // iterate through doc.Sections()
+		// for _, section := range doc.Sections() {
+		// 	// t.Logf("Section tag: %s", section.Tag())
+		// 	sectionText := section.ToText(true, false)
+		// 	t.Logf("Section: %s", sectionText)
+		// 	// sectionHTML := section.ToHTML(false, true)
+		// 	// t.Logf("Section HTML: %s", sectionHTML)
 
-			var iterChildren func(node BlockInterface, level int)
-			iterChildren = func(node BlockInterface, level int) {
-				switch nodeBlock := node.(type) {
-				case *Paragraph:
-					t.Logf("%s-Paragraph", strings.Repeat("  ", level))
-					t.Logf("# Sentences: %d", len(nodeBlock.Sentences))
-					t.Logf("PARAGRAPH SPOTTED: %s", strings.Join(nodeBlock.Sentences, "\n\n SENTENCE \n\n"))
-				case *Block:
-					for _, child := range nodeBlock.Children {
-						switch childBlock := child.(type) {
-						case *Section:
-							t.Logf("%s-Section", strings.Repeat("  ", level))
-							t.Logf("# Sentences: %d", len(childBlock.Sentences))
-						}
-						iterChildren(child, level+1)
-					}
-				case *Section:
-					for _, child := range nodeBlock.Children {
-						switch childBlock := child.(type) {
-						case *Section:
-							t.Logf("%s-Section", strings.Repeat("  ", level))
-							t.Logf("# Sentences: %d", len(childBlock.Sentences))
-						}
-						iterChildren(child, level+1)
-					}
-					sections = append(sections, nodeBlock.ToContextText(true))
-				case *ListItem:
-					t.Logf("%s-Paragraph", strings.Repeat("  ", level))
-					t.Logf("# Sentences: %d", len(nodeBlock.Sentences))
-					t.Logf("LIST ITEM SPOTTED: %s", strings.Join(nodeBlock.Sentences, "\n\n LIST SENTENCE \n\n"))
-					for _, child := range nodeBlock.Children {
-						switch childBlock := child.(type) {
-						case *Section:
-							t.Logf("%s-Section", strings.Repeat("  ", level))
-							t.Logf("# Sentences: %d", len(childBlock.Sentences))
-						}
-						iterChildren(child, level+1)
-					}
-				// Handle other block types as needed
-				default:
-					t.Logf("Unsupported block type: %T", node)
-				}
-			}
+		// 	var iterChildren func(node BlockInterface, level int)
+		// 	iterChildren = func(node BlockInterface, level int) {
+		// 		switch nodeBlock := node.(type) {
+		// 		case *Paragraph:
+		// 			t.Logf("%s-Paragraph", strings.Repeat("  ", level))
+		// 			t.Logf("# Sentences: %d", len(nodeBlock.Sentences))
+		// 			t.Logf("PARAGRAPH SPOTTED: %s", strings.Join(nodeBlock.Sentences, "\n\n SENTENCE \n\n"))
+		// 		case *Block:
+		// 			for _, child := range nodeBlock.Children {
+		// 				switch childBlock := child.(type) {
+		// 				case *Section:
+		// 					t.Logf("%s-Section", strings.Repeat("  ", level))
+		// 					t.Logf("# Sentences: %d", len(childBlock.Sentences))
+		// 				}
+		// 				iterChildren(child, level+1)
+		// 			}
+		// 		case *Section:
+		// 			for _, child := range nodeBlock.Children {
+		// 				switch childBlock := child.(type) {
+		// 				case *Section:
+		// 					t.Logf("%s-Section", strings.Repeat("  ", level))
+		// 					t.Logf("# Sentences: %d", len(childBlock.Sentences))
+		// 				}
+		// 				iterChildren(child, level+1)
+		// 			}
+		// 			sections = append(sections, nodeBlock.ToContextText(true))
+		// 		case *ListItem:
+		// 			t.Logf("%s-Paragraph", strings.Repeat("  ", level))
+		// 			t.Logf("# Sentences: %d", len(nodeBlock.Sentences))
+		// 			t.Logf("LIST ITEM SPOTTED: %s", strings.Join(nodeBlock.Sentences, "\n\n LIST SENTENCE \n\n"))
+		// 			for _, child := range nodeBlock.Children {
+		// 				switch childBlock := child.(type) {
+		// 				case *Section:
+		// 					t.Logf("%s-Section", strings.Repeat("  ", level))
+		// 					t.Logf("# Sentences: %d", len(childBlock.Sentences))
+		// 				}
+		// 				iterChildren(child, level+1)
+		// 			}
+		// 		// Handle other block types as needed
+		// 		default:
+		// 			t.Logf("Unsupported block type: %T", node)
+		// 		}
+		// 	}
 
-			iterChildren(section, 1)
+		// 	iterChildren(section, 1)
 
-		}
+		// }
 
 		sentences := make([]string, 0)
 		// iterate through doc.Chunks()
@@ -155,9 +154,9 @@ func TestChipper(t *testing.T) {
 		}
 
 		// iterate and print each sentence with \n between
-		for _, sentence := range sentences {
-			t.Logf("\n\n%s\n\n", sentence)
-		}
+		// for _, sentence := range sentences {
+		// 	t.Logf("\n\n%s\n\n", sentence)
+		// }
 
 		t.Logf("number of sections: %d", len(doc.Sections()))
 		t.Logf("number of chunks: %d", len(doc.Chunks()))

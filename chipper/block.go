@@ -211,9 +211,9 @@ func (b *Block) Paragraphs() []BlockInterface {
 func (b *Block) Chunks() []BlockInterface {
 	var chunks []BlockInterface
 	chunkCollector := func(node BlockInterface) {
-		switch nodeBlock := node.(type) {
+		switch node.(type) {
 		case *Paragraph, *ListItem, *Table:
-			chunks = append(chunks, nodeBlock)
+			chunks = append(chunks, node)
 		}
 	}
 	b.IterChildren(b, 0, chunkCollector)
@@ -375,16 +375,10 @@ func NewTableCell(cellJSON map[string]interface{}) *TableCell {
 }
 
 func (tc *TableCell) ToText() string {
-	cellText := ""
-	switch value := tc.CellValue.(type) {
-	case string:
-		cellText = value
-	default:
-		if tc.CellNode != nil {
-			cellText = tc.CellNode.ToText(false, false)
-		}
+	if tc.CellNode != nil {
+		return tc.CellNode.ToText(false, false)
 	}
-	return cellText
+	return fmt.Sprint(tc.CellValue)
 }
 
 func (tc *TableCell) ToHTML() string {
@@ -543,5 +537,157 @@ func (t *Table) ToHTML(includeChildren, recurse bool) string {
 		htmlStr += row.ToHTML(false, false)
 	}
 	htmlStr += "</table>"
+	return htmlStr
+}
+
+type LayoutReader struct{}
+
+func (lr *LayoutReader) Debug(pdfRoot BlockInterface) {
+	var iterChildren func(node BlockInterface, level int)
+	iterChildren = func(node BlockInterface, level int) {
+		switch nodeBlock := node.(type) {
+		case *Block:
+			for _, child := range nodeBlock.Children {
+				fmt.Printf("%s%s (%d) %s\n", strings.Repeat("-", level), child.(*Block).Tag, len(child.(*Block).Children), child.ToText(false, false))
+				iterChildren(child, level+1)
+			}
+		case *Paragraph, *Section, *ListItem, *Table:
+			for _, child := range nodeBlock.(*Block).Children {
+				fmt.Printf("%s%s (%d) %s\n", strings.Repeat("-", level), child.(*Block).Tag, len(child.(*Block).Children), child.ToText(false, false))
+				iterChildren(child, level+1)
+			}
+		}
+	}
+	iterChildren(pdfRoot, 0)
+}
+
+func (lr *LayoutReader) Read(blocksJSON []interface{}) BlockInterface {
+	rootNode := &Block{}
+	var parent BlockInterface = rootNode
+	parentStack := []BlockInterface{rootNode}
+	var prevNode BlockInterface = rootNode
+	var listStack []BlockInterface
+
+	for _, blockData := range blocksJSON {
+		blockMap := blockData.(map[string]interface{})
+		tag := blockMap["tag"].(string)
+
+		var node BlockInterface
+		switch tag {
+		case "para":
+			node = NewParagraph(blockMap)
+		case "table":
+			node = NewTable(blockMap, prevNode)
+		case "list_item":
+			node = NewListItem(blockMap)
+		case "header":
+			node = NewSection(blockMap)
+		default:
+			node = NewBlock(blockMap)
+		}
+
+		currentLevel := -1
+		if level, ok := blockMap["level"].(float64); ok {
+			currentLevel = int(level)
+		}
+
+		// Handling list items with hierarchy and sections
+		if tag == "list_item" {
+			// Check if the last node was a list item and manage list stack accordingly
+			if len(listStack) > 0 {
+				lastListItem := listStack[len(listStack)-1].(*ListItem)
+				if currentLevel > lastListItem.Level {
+					listStack = append(listStack, node)
+				} else {
+					// Pop from stack until a node with less or equal level is found
+					for len(listStack) > 0 && listStack[len(listStack)-1].(*ListItem).Level >= currentLevel {
+						listStack = listStack[:len(listStack)-1]
+					}
+				}
+			}
+			if len(listStack) > 0 {
+				listStack[len(listStack)-1].AddChild(node)
+			} else {
+				parent.AddChild(node)
+			}
+			listStack = append(listStack, node)
+		} else {
+			// Handling sections with hierarchy
+			if tag == "header" {
+				// Push to parent stack or pop accordingly
+				for len(parentStack) > 0 {
+					topBlock, ok := parentStack[len(parentStack)-1].(*Block)
+					if !ok {
+						// Handle error: topBlock is not of type *Block, which should ideally never happen if the stack is managed correctly
+						fmt.Println("Error: Non-Block type found in parentStack")
+						break
+					}
+					if topBlock.Level < currentLevel {
+						break
+					}
+					parentStack = parentStack[:len(parentStack)-1]
+				}
+
+				if len(parentStack) > 0 {
+					parent = parentStack[len(parentStack)-1]
+				} else {
+					parent = rootNode
+				}
+				parent.AddChild(node)
+				parentStack = append(parentStack, node)
+				parent = node // Set new parent to the current node since it's a header and can have children
+			} else {
+				parent.AddChild(node) // Add the current node to the children of the current parent
+			}
+		}
+
+		prevNode = node
+	}
+
+	return rootNode
+}
+
+type Document struct {
+	reader   *LayoutReader
+	rootNode BlockInterface
+	json     []interface{}
+}
+
+func NewDocument(blocksJSON []interface{}) *Document {
+	reader := &LayoutReader{}
+	rootNode := reader.Read(blocksJSON)
+	return &Document{
+		reader:   reader,
+		rootNode: rootNode,
+		json:     blocksJSON,
+	}
+}
+
+func (d *Document) Chunks() []BlockInterface {
+	return d.rootNode.Chunks()
+}
+
+func (d *Document) Tables() []BlockInterface {
+	return d.rootNode.Tables()
+}
+
+func (d *Document) Sections() []BlockInterface {
+	return d.rootNode.Sections()
+}
+
+func (d *Document) ToText() string {
+	text := ""
+	for _, section := range d.Sections() {
+		text += section.ToText(true, true) + "\n"
+	}
+	return strings.TrimSpace(text)
+}
+
+func (d *Document) ToHTML() string {
+	htmlStr := "<html>"
+	for _, section := range d.Sections() {
+		htmlStr += section.ToHTML(true, true)
+	}
+	htmlStr += "</html>"
 	return htmlStr
 }
